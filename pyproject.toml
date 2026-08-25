@@ -1,0 +1,28 @@
+[project]
+name = "nitschecut"
+version = "0.1.0"
+description = "Bounded Nitsche stabilization for cut finite element methods under degenerate (sliver) cut configurations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Nitsche cutcell methodology project" }]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-fem>=9.0",
+    "pyamg>=5.0",
+    "pandas>=2.0",
+    "matplotlib>=3.8",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
