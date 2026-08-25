@@ -41,7 +41,7 @@ def h1_semi_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
         basis = PkBasis(k, mesh.nodes[mesh.elements[e]])
         loc = dofs[e]
         grads = basis.grads(region.pts)
-        guh = np.einsum("qi,qid->qd", u_h[loc], grads)
+        guh = np.einsum("i,qid->qd", u_h[loc], grads)
         diff = grad_u_exact(region.pts) - guh
         total += float(np.sum(region.wts * np.sum(diff * diff, axis=1)))
     return float(np.sqrt(total))
@@ -75,7 +75,7 @@ def energy_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
         loc = dofs[e]
         vals = basis.values(region.pts)
         grads = basis.grads(region.pts)
-        ge = grad_u_exact(region.pts) - np.einsum("qi,qid->qd", u_h[loc], grads)
+        ge = grad_u_exact(region.pts) - np.einsum("i,qid->qd", u_h[loc], grads)
         total += float(np.sum(region.wts * np.sum(ge * ge, axis=1)))
 
         if region.status != "cut" or e not in lam_by_element:
@@ -84,7 +84,7 @@ def energy_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
         bp, bw, bn = region.bnd_pts, region.bnd_wts, region.bnd_nrm
         vb = basis.values(bp)
         gb = basis.grads(bp)
-        dn_uh = np.einsum("qi,qid->q", u_h[loc],
+        dn_uh = np.einsum("i,qid->q", u_h[loc],
                           np.einsum("qid,qd->qi", gb, bn))
         e_b = u_exact(bp) - vb @ u_h[loc]
         dn_e = dn_u_exact(bp, bn) - dn_uh
