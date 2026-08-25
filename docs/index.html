@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bounded Nitsche Stabilization under Sliver Cuts — Preregistered Study</title>
+<style>
+  :root { --ink:#1a1a2e; --accent:#16537e; --muted:#5a5a72; }
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 46rem;
+         margin: 3rem auto; padding: 0 1.25rem; color: var(--ink);
+         line-height: 1.65; }
+  h1 { font-size: 1.7rem; line-height: 1.25; }
+  .verdict { background: #f4f6f8; border-left: 4px solid var(--accent);
+             padding: 1rem 1.25rem; margin: 1.5rem 0; }
+  code { background: #eef1f4; padding: 0.1em 0.35em; border-radius: 3px;
+         font-size: 0.9em; word-break: break-all; }
+  a { color: var(--accent); }
+  ul li { margin-bottom: 0.4rem; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: 0.9rem;
+           border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>Bounded Nitsche Stabilization for Unfitted Finite Element Methods
+under Sliver Cuts</h1>
+<p>A preregistered systematic evaluation of closed-form stabilization-parameter
+formulas for symmetric Nitsche methods on unfitted meshes, built on an
+exact-geometry cut-cell engine (Green's-theorem clipping of circular arcs,
+affine ellipse reduction, measured-error subdivision fallback).</p>
+
+<div class="verdict">
+<strong>Honest verdict:</strong> infrastructure fully verified and benign-cut
+validation <em>measured</em> with optimal rates for P<sub>1</sub>/P<sub>2</sub>
+(L² slopes 1.85 / 3.17, H¹ slopes 0.97 / 2.08, all R² ≥ 0.995). The
+preregistered sliver sweep and falsification gates H1–H3 are frozen but
+<strong>not yet executed</strong> — no stabilization-formula claim is made.
+</div>
+
+<h2>Read</h2>
+<ul>
+  <li><a href="paper.pdf">Preprint (PDF)</a> — abstract, method,
+      measured results table, related work.</li>
+  <li><a href="https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology">Reproducibility repository</a>
+      — source, tests, preregistration, run logs.</li>
+</ul>
+
+<h2>Frozen protocol</h2>
+<ul>
+  <li>Candidate formulas F1–F8 (baseline ρ/h, hard clips, aspect-ratio clip,
+      harmonic blends, logarithmic damping, curvature-augmented, aggregation
+      hybrid, train-split-fitted).</li>
+  <li>Tiers T1–T5: controlled slivers to ε = 10⁻⁶, 200-realization random
+      ensembles, curvature sweep, 3D generalization, sign-changing coefficient.</li>
+  <li>Numeric falsification gates with Bonferroni-corrected statistics;
+      positive and negative outcomes are both valid terminal states.</li>
+  <li>Preregistration SHA-256:
+      <code>b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f</code></li>
+</ul>
+
+<footer>Preregistration frozen 2026-08-25 before collection of any sweep data.
+Every number in the preprint's results table is transcribed from a persisted
+run log; claims without a logged row are inadmissible.</footer>
+</body>
+</html>

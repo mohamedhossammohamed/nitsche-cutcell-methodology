@@ -41,3 +41,26 @@ falsification criteria.
 Every run records mesh parameters, cut configuration, formula, solver,
 random seeds, and package versions into Parquet tables under `results/`;
 all manuscript figures regenerate from those tables alone.
+
+## Status
+
+**Honest verdict (one line):** infrastructure fully verified and benign-cut
+validation measured with optimal rates for P1/P2; the preregistered sliver
+sweep and hypothesis gates H1--H3 are frozen but not yet executed — no
+stabilization-formula claim is made yet.
+
+- Preprint: [paper.pdf](docs/paper.pdf) (source: `paper.tex`)
+- Preregistration: sha256 `b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f`
+  (2026-08-25T01:54:08Z), gates in `spec/falsification-gates.md`
+- Measured validation (run `98bebc59`): $P_1$ slopes $p_{L^2}=1.85$,
+  $p_{H^1}=0.97$; $P_2$ slopes $p_{L^2}=3.17$, $p_{H^1}=2.08$; all $R^2\ge0.995$.
+
+### Run history
+
+| date | run | outcome |
+|------|-----|---------|
+| 2026-08-25 | `43fe7687` | failed (superseded node, stale run command; no data) |
+| 2026-08-25 | `98bebc59` | completed: preregistered benign-cut validation, optimal rates both degrees |
+
+Tier sweeps T1–T5 are pending; this history is maintained so that no run can be
+silently retried or overwritten.
