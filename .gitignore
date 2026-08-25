@@ -7,3 +7,4 @@ results/
 figures/
 .pytest_cache/
 .DS_Store
+paper.pdf

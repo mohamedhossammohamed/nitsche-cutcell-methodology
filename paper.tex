@@ -9,11 +9,15 @@
 \usepackage[hidelinks]{hyperref}
 \newtheorem{remark}{Remark}
 
-\title{Bounded Nitsche Stabilization for Unfitted Finite Element Methods
-under Sliver Cuts:\\ An Exact-Geometry Framework, a Preregistered Formula
-Search, and Verified Benign-Cut Validation}
+\title{Reproduction Report:\\ Exact-Geometry Cut-Cell Nitsche Infrastructure,
+Verification, and a Preregistered Protocol\\ for Bounded Stabilization under
+Sliver Cuts}
 
-\author{Mohamed Hossam Mohamed\thanks{Reproducibility repository:
+\author{Prepared by Mohamed Hossam Mohamed\thanks{This document is an
+engineering reproduction and verification report. It documents verified
+computational infrastructure, the frozen experimental protocol, and measured
+validation results of the project; it is not a novel-methods paper, and no
+stabilization-formula claim is made. Reproducibility repository:
 \url{https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology}.
 Preregistration SHA-256
 \texttt{b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f},
@@ -24,12 +28,16 @@ frozen 2026--08--25 before collection of any sweep data.}}
 \maketitle
 
 \begin{abstract}
-Symmetric Nitsche methods impose Dirichlet conditions on unfitted meshes
-through a penalty $\lambda_T$ whose classical volume-scaled choice,
+This document is a \emph{reproduction and verification report}, not a
+novel-research paper: it records the construction, verification, and first
+measured exercise of a computational instrument, together with the frozen
+protocol under which its main experiments will be judged. The subject is
+symmetric Nitsche methods on unfitted meshes, whose penalty
+$\lambda_T$ under the classical volume-scaled choice,
 $\lambda_T=C_k\rho(T)/h_T$ with $\rho(T)=|T\cap\partial\Omega|/|T\cap\Omega|$,
 diverges when the physical domain occupies a vanishing fraction of a background
 element (a \emph{sliver cut}), inflating stiffness-matrix condition numbers and
-destroying accuracy through round-off. This work contributes three things.
+destroying accuracy through round-off. The report contributes three things.
 First, an exact-geometry computational framework in which circle cuts are
 clipped in closed form via Green's theorem --- carrying no tessellation error at
 any cut fraction --- ellipses reduce affinely to the same exact path, and only
@@ -100,7 +108,7 @@ preregistered benign-cut validation has been measured and is reported here
 (\S\ref{sec:experiments}); the controlled-sliver tier and hypothesis gates are
 specified but not yet run, and we state that plainly rather than implying more.
 
-Our contributions are:
+The report documents:
 (i) an exact-geometry cut-cell engine with machine-precision areas, boundary
 measures, and curved-boundary quadrature for circular arcs at arbitrary sliver
 fractions;
@@ -302,6 +310,34 @@ the closed-form penalty $\Phi$ under preregistered falsification gates, and
 supplies an exact-geometry measurement bed in which the regressors entering
 any $\Phi$ carry no quadrature error for the quadric family.
 
+\section{Attribution and provenance}\label{sec:attribution}
+
+This report was prepared by Mohamed Hossam Mohamed as part of the
+\emph{nitsche-cutcell-methodology} research project. The computational
+infrastructure, verification suite, and frozen protocol documented here are
+project-internal artifacts; the manuscript you are reading carries no claim of
+novel methodology. Every methodological foundation used or measured against
+this infrastructure is attributed to its authors in the bibliography above,
+with source links: cell aggregation and the AgFEM space construction are due
+to \citet{badia2019aggregated}; polynomial-extension stabilization for
+unfitted methods to \citet{burman2023unfitted}; ghost-penalty-aware multigrid
+practice to \citet{cui2025multigrid}; geometry-conforming immersed spaces to
+\citet{lin2026geometry}; virtual-element agglomeration to
+\citet{rangarajan2025cutvem}; immersed-method preconditioning to
+\citet{voet2026deflation}; and extended virtual element stabilization to
+\citet{zheng2026mixed}.
+
+Artifact locations:
+report source \texttt{paper.tex}; rendered document served at
+\url{https://mohamedhossammohamed.github.io/nitsche-cutcell-methodology/paper.pdf};
+landing page
+\url{https://mohamedhossammohamed.github.io/nitsche-cutcell-methodology/};
+reproducibility repository (source, tests, run logs)
+\url{https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology}.
+Preregistration SHA-256
+\texttt{b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f}
+(2026--08--25T01:54:08Z).
+
 \section{Conclusion}\label{sec:conclusion}
 
 We built and verified the measurement instrument before using it, froze the
@@ -319,42 +355,42 @@ with evidence and exact statistics, is the publishable answer.
 \bibitem[Badia et al.(2019)]{badia2019aggregated}
 S.~Badia, F.~Verdugo, A.~F. Mart\'in.
 The aggregated unfitted finite element method for elliptic problems.
-arXiv:1709.09122, 2019.
+\url{https://arxiv.org/abs/1709.09122}, 2019.
 
 \bibitem[Burman et al.(2023)]{burman2023unfitted}
 E.~Burman, A.~Ern, R.~Mottier.
 Unfitted hybrid high-order methods stabilized by polynomial extension for
 elliptic interface problems.
-arXiv:2503.11397, 2023--2025.
+\url{https://arxiv.org/abs/2503.11397}.
 
 \bibitem[Cui and Kanschat(2025)]{cui2025multigrid}
 C.~Cui, G.~Kanschat.
 A multigrid method for CutFEM and its implementation on GPU.
-arXiv:2508.11608, 2025.
+\url{https://arxiv.org/abs/2508.11608}, 2025.
 
 \bibitem[Lin et al.(2026)]{lin2026geometry}
 Y.~Lin, T.~Lin, X.~Zhang, M.~Feng.
 Geometry-conforming finite element methods for interface problems on fitted
 and unfitted meshes.
-arXiv:2608.14484, 2026.
+\url{https://arxiv.org/abs/2608.14484}, 2026.
 
 \bibitem[Rangarajan and Sukumar(2025)]{rangarajan2025cutvem}
 R.~Rangarajan, N.~Sukumar.
 CutVEM: conforming virtual element method on embedded domains with
 shape-agnostic element agglomeration.
-arXiv:2508.10570, 2025.
+\url{https://arxiv.org/abs/2508.10570}, 2025.
 
 \bibitem[Voet et al.(2026)]{voet2026deflation}
 Y.~Voet, M.~M\"oller, P.~Antolin, C.~Vuik.
 Deflation-based preconditioning for immersed finite element methods and
 immersogeometric analysis.
-arXiv:2604.12848, 2026.
+\url{https://arxiv.org/abs/2604.12848}, 2026.
 
 \bibitem[Zheng et al.(2026)]{zheng2026mixed}
 X.~Zheng, J.~Chen, F.~Wang.
 A mixed extended virtual element method for elliptic interface problems on
 polygonal meshes.
-arXiv:2606.08526, 2026.
+\url{https://arxiv.org/abs/2606.08526}, 2026.
 
 \end{thebibliography}
 

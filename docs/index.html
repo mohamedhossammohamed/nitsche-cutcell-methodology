@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bounded Nitsche Stabilization under Sliver Cuts — Preregistered Study</title>
+<title>Reproduction Report — Bounded Nitsche Stabilization under Sliver Cuts</title>
 <style>
   :root { --ink:#1a1a2e; --accent:#16537e; --muted:#5a5a72; }
   body { font-family: Georgia, 'Times New Roman', serif; max-width: 46rem;
@@ -21,9 +21,9 @@
 </style>
 </head>
 <body>
-<h1>Bounded Nitsche Stabilization for Unfitted Finite Element Methods
-under Sliver Cuts</h1>
-<p>A preregistered systematic evaluation of closed-form stabilization-parameter
+<div style="display:inline-block;background:#16537e;color:#fff;padding:0.2rem 0.7rem;border-radius:3px;font-size:0.8rem;letter-spacing:0.08em;margin-bottom:0.8rem;">REPRODUCTION REPORT</div>
+<h1>Bounded Nitsche Stabilization for Unfitted Finite Element Methods under Sliver Cuts<br><span style="font-size:1rem;font-weight:normal;color:#5a5a72;">Exact-Geometry Infrastructure, Verification, and a Preregistered Protocol</span></h1>
+<p>An engineering reproduction and verification report accompanying a preregistered evaluation of closed-form stabilization-parameter
 formulas for symmetric Nitsche methods on unfitted meshes, built on an
 exact-geometry cut-cell engine (Green's-theorem clipping of circular arcs,
 affine ellipse reduction, measured-error subdivision fallback).</p>
@@ -38,8 +38,7 @@ preregistered sliver sweep and falsification gates H1–H3 are frozen but
 
 <h2>Read</h2>
 <ul>
-  <li><a href="paper.pdf">Preprint (PDF)</a> — abstract, method,
-      measured results table, related work.</li>
+  <li><a href="reproduction-report.pdf">Reproduction report (PDF)</a> — infrastructure, method, measured validation table, related work. Prepared by Mohamed Hossam Mohamed; not a novel-methods paper.</li>
   <li><a href="https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology">Reproducibility repository</a>
       — source, tests, preregistration, run logs.</li>
 </ul>
@@ -56,6 +55,23 @@ preregistered sliver sweep and falsification gates H1–H3 are frozen but
   <li>Preregistration SHA-256:
       <code>b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f</code></li>
 </ul>
+
+
+<h2>Attribution</h2>
+<p>Report prepared by <strong>Mohamed Hossam Mohamed</strong>. The infrastructure
+and protocol documented here build on the following published methods; all
+credit for those contributions belongs to their authors:</p>
+<ul>
+  <li>S. Badia, F. Verdugo, A. F. Martín — <a href="https://arxiv.org/abs/1709.09122">The aggregated unfitted finite element method for elliptic problems</a></li>
+  <li>E. Burman, A. Ern, R. Mottier — <a href="https://arxiv.org/abs/2503.11397">Unfitted hybrid high-order methods stabilized by polynomial extension</a></li>
+  <li>C. Cui, G. Kanschat — <a href="https://arxiv.org/abs/2508.11608">A multigrid method for CutFEM and its implementation on GPU</a></li>
+  <li>Y. Lin, T. Lin, X. Zhang, M. Feng — <a href="https://arxiv.org/abs/2608.14484">Geometry-conforming finite element methods for interface problems</a></li>
+  <li>R. Rangarajan, N. Sukumar — <a href="https://arxiv.org/abs/2508.10570">CutVEM: conforming VEM with shape-agnostic element agglomeration</a></li>
+  <li>Y. Voet, M. Möller, P. Antolin, C. Vuik — <a href="https://arxiv.org/abs/2604.12848">Deflation-based preconditioning for immersed finite element methods</a></li>
+  <li>X. Zheng, J. Chen, F. Wang — <a href="https://arxiv.org/abs/2606.08526">A mixed extended virtual element method for elliptic interface problems</a></li>
+</ul>
+<p>This report documents project-internal infrastructure and measured
+validation; it is not a novel-methods paper.</p>
 
 <footer>Preregistration frozen 2026-08-25 before collection of any sweep data.
 Every number in the preprint's results table is transcribed from a persisted

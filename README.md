@@ -49,7 +49,7 @@ validation measured with optimal rates for P1/P2; the preregistered sliver
 sweep and hypothesis gates H1--H3 are frozen but not yet executed — no
 stabilization-formula claim is made yet.
 
-- Preprint: [paper.pdf](docs/paper.pdf) (source: `paper.tex`)
+- Reproduction report (not a novel-methods paper): [reproduction-report.pdf](docs/reproduction-report.pdf) (source: `paper.tex`)
 - Preregistration: sha256 `b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f`
   (2026-08-25T01:54:08Z), gates in `spec/falsification-gates.md`
 - Measured validation (run `98bebc59`): $P_1$ slopes $p_{L^2}=1.85$,
