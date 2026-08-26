@@ -48,7 +48,7 @@ def h1_semi_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
 
 
 def energy_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
-                 grad_u_exact, dn_u_exact, lam_by_element: dict[int, float],
+                 grad_u_exact, dn_u_exact, u_exact, lam_by_element: dict[int, float],
                  vol_order: int | None = None, bnd_order: int = 14) -> float:
     """sqrt(a_h(e, e)) using the SAME per-element lambdas as assembly.
 
@@ -82,9 +82,11 @@ def energy_error(mesh, levelset, u_h: np.ndarray, dofs: np.ndarray, k: int,
             continue
         lam = lam_by_element[e]
         bp, bw, bn = region.bnd_pts, region.bnd_wts, region.bnd_nrm
+        if len(bp) == 0:
+            continue
         vb = basis.values(bp)
         gb = basis.grads(bp)
-        dn_uh = np.einsum("i,qid->q", u_h[loc],
+        dn_uh = np.einsum("i,qi->q", u_h[loc],
                           np.einsum("qid,qd->qi", gb, bn))
         e_b = u_exact(bp) - vb @ u_h[loc]
         dn_e = dn_u_exact(bp, bn) - dn_uh
