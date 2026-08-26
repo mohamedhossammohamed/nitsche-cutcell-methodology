@@ -17,9 +17,9 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
-from benchmarks.mesh import unit_square_mesh
+from benchmarks.mesh import unit_square_mesh, TriMesh
 from formulas.registry import build_registry, C_k
-from geometry.levelsets import Circle
+from geometry.levelsets import Circle, Ellipse, Superellipse
 from geometry.cutting import cut_cell
 from measurement.assembly import assemble_nitsche, PkBasis, default_aggregator
 from measurement.errors import h1_semi_error, l2_error, energy_error
@@ -101,6 +101,54 @@ def t1_circle(n: int, eps: float, r: float = 0.25) -> Circle:
     cx = 3.5 * h
     cy = 4.0 * h + s - r
     return Circle(center=(cx, cy), radius=r)
+
+
+def extended_background_mesh(n: int, xmin: float = -0.5, xmax: float = 1.5) -> TriMesh:
+    """Background mesh larger than [0,1]² to keep T1 disk inside D for all h.
+    Structured triangles, same topology as unit_square_mesh but shifted/scaled.
+    With n cells per axis, h_ext = (xmax-xmin)/n. For n=64, covers [-0.5,1.5] with h=0.03125."""
+    import numpy as np
+    from benchmarks.mesh import TriMesh
+    # reuse logic from benchmarks.mesh but with custom bounds
+    xs = np.linspace(xmin, xmax, n + 1)
+    ys = np.linspace(xmin, xmax, n + 1)
+    gx, gy = np.meshgrid(xs, ys, indexing="ij")
+    nodes = np.stack([gx.ravel(), gy.ravel()], axis=1)
+    def nid(i,j): return i*(n+1)+j
+    elems=[]; cell_ids=[]
+    for i in range(n):
+        for j in range(n):
+            v00, v10 = nid(i,j), nid(i+1,j)
+            v01, v11 = nid(i,j+1), nid(i+1,j+1)
+            elems.append([v00,v10,v11]); cell_ids.append(i+j*n)
+            elems.append([v00,v11,v01]); cell_ids.append(i+j*n)
+    import numpy as _np
+    elements = _np.asarray(elems, dtype=int)
+    # reuse edge building from benchmarks.mesh
+    from benchmarks.mesh import unit_square_mesh as _us
+    # manually build edges similarly
+    pairs=[(1,2),(0,2),(0,1)]
+    lookup={}; edge_nodes_list=[]; edge_ids=_np.empty((len(elements),3), dtype=int)
+    for e in range(len(elements)):
+        for loc,(a,b) in enumerate(pairs):
+            key=(min(int(elements[e,a]),int(elements[e,b])), max(int(elements[e,a]),int(elements[e,b])))
+            eid=lookup.get(key)
+            if eid is None:
+                eid=len(edge_nodes_list); lookup[key]=eid; edge_nodes_list.append(key)
+            edge_ids[e,loc]=eid
+    edge_nodes=_np.asarray(edge_nodes_list, dtype=int)
+    edge_to_elem={}
+    for e in range(len(elements)):
+        for loc in range(3):
+            edge_to_elem.setdefault(int(edge_ids[e,loc]), []).append(e)
+    adjacency=[]
+    for e in range(len(elements)):
+        nbrs=set()
+        for loc in range(3):
+            for other in edge_to_elem[int(edge_ids[e,loc])]:
+                if other!=e: nbrs.add(other)
+        adjacency.append(sorted(nbrs))
+    return TriMesh(nodes, elements, _np.asarray(cell_ids,dtype=int), n, edge_ids, edge_nodes, adjacency)
 
 
 # ---------------------------------------------------------------------------
@@ -396,11 +444,191 @@ def run_t1() -> pd.DataFrame:
     return df
 
 
+# ---------------------------------------------------------------------------
+# T2 random ensemble (reduced N=60) and T3 curvature sweep
+# ---------------------------------------------------------------------------
+
+T2_N_PER_MESH = 20  # 10 disks + 10 superellipses per n, total 60; prereg is 200 (100+100) — D7
+T2_NS = [16, 32, 64]
+T2_FORMULAS = ["F1", "F3", "F4c", "F7"]  # 4 representative; full 14 would be 8400 configs
+T3_ASPECTS = [1, 2, 5, 10]
+T3_NS = [16, 32, 64]
+T3_FORMULAS = ["F1", "F3", "F4c", "F7"]
+
+
+def run_t2() -> pd.DataFrame:
+    """T2 ensemble with exact circle and subdivision superellipse.
+    Uses reduced N for runtime; subdivision verify=False for speed (D8)."""
+    reg = build_registry()
+    u,f,gu,dn = manufactured_2d()
+    rows=[]
+    rng = np.random.default_rng(20260825)
+    total = len(T2_NS)*T2_N_PER_MESH*len(T2_FORMULAS)
+    print(f"METRIC t2_total_configs {total}", flush=True)
+    t0_all=time.perf_counter()
+    for n in T2_NS:
+        mesh = unit_square_mesh(n)
+        for repl in range(T2_N_PER_MESH):
+            is_disk = repl < 10
+            if is_disk:
+                r = float(rng.uniform(0.30,0.40))
+                cx, cy = rng.uniform(0.35,0.65, size=2)
+                ls = Circle(center=(float(cx),float(cy)), radius=r)
+            else:
+                ax, ay = rng.uniform(0.28,0.38, size=2)
+                cx, cy = rng.uniform(0.35,0.65, size=2)
+                ls = Superellipse(center=(float(cx),float(cy)), semi_axes=(float(ax),float(ay)), exponent=6)
+            # for superellipse, we will use subdivision with verify=False via monkey patch: pass via cut_cell verify flag by using custom wrapper
+            # Instead we directly call assemble which internally uses default verify=True; we accept the cost for now but limit N
+            for fid in T2_FORMULAS:
+                psi=reg[fid]['psi']; is_agg=(fid=='F7')
+                try:
+                    if is_agg:
+                        res=assemble_nitsche(mesh, ls, psi, k=1, f=f, g=u, aggregator=default_aggregator, eps_c=1e-3)
+                    else:
+                        res=assemble_nitsche(mesh, ls, psi, k=1, f=f, g=u)
+                    sp=spectral_measures(res.A)
+                    sol=SOLVERS["S1_lu"](res.A, res.rhs)
+                    full=res.expand(sol.x)
+                    # single-pass l2 (superellipse subdivision already heavy, so we skip h1/energy for T2 demo to save time)
+                    l2_tot=0.0
+                    for e in range(mesh.n_elements):
+                        # Use same cutting as assembly but with verify=False for superellipse to speed: we call cut_cell directly with appropriate args
+                        if isinstance(ls, Superellipse):
+                            from geometry.cutting import clip_subdivision
+                            region=clip_subdivision(mesh.nodes[mesh.elements[e]], ls, lin_tol=5e-3, max_depth=30, verify=False)
+                        else:
+                            region=cut_cell(ls, mesh.nodes[mesh.elements[e]], vol_order=10)
+                        if region.status=="empty": continue
+                        basis=PkBasis(1, mesh.nodes[mesh.elements[e]])
+                        loc=res.dofs[e]
+                        vals=basis.values(region.pts)
+                        diff=u(region.pts)-vals@full[loc]
+                        l2_tot+=float(np.sum(region.wts*diff*diff))
+                    l2=float(np.sqrt(l2_tot))
+                    # record train/test split (prereg: train repl<14, test >=14 for N=20)
+                    split="train" if repl<14 else "test"
+                    rows.append({"tier":"T2","n":n,"repl":repl,"split":split,"formula":fid,"is_disk":is_disk,
+                                 "kappa":float(sp['kappa']), "lambda_min":float(sp['lambda_min']), "l2_err":float(l2),
+                                 "cx":float(cx),"cy":float(cy),"seed":20260825})
+                    if len(rows)%20==0:
+                        print(f"METRIC t2_progress n {n} repl {repl} fid {fid} kappa {sp['kappa']:.2e} elapsed {time.perf_counter()-t0_all:.1f}s", flush=True)
+                except Exception as e:
+                    print(f"METRIC t2_failed n {n} repl {repl} fid {fid} err {e}", flush=True)
+                    rows.append({"tier":"T2","n":n,"repl":repl,"split":"train" if repl<14 else "test","formula":fid,"is_disk":is_disk,"kappa":np.nan,"lambda_min":np.nan,"l2_err":np.nan})
+    df=pd.DataFrame(rows)
+    # summary median/IQR
+    for n in T2_NS:
+        for fid in T2_FORMULAS:
+            g=df[(df.n==n)&(df.formula==fid)]
+            if len(g)==0: continue
+            med=g.kappa.median(); q25=g.kappa.quantile(0.25); q75=g.kappa.quantile(0.75)
+            print(f"METRIC t2_summary n {n} fid {fid} median_kappa {med:.2e} IQR [{q25:.2e},{q75:.2e}] N {len(g)}", flush=True)
+    return df
+
+
+def run_t3() -> pd.DataFrame:
+    """T3 curvature sweep: ellipses with aspect sweep, exact affine path."""
+    reg=build_registry()
+    u,f,gu,dn = manufactured_2d()
+    rows=[]
+    total=len(T3_ASPECTS)*len(T3_NS)*2*len(T3_FORMULAS)
+    print(f"METRIC t3_total_configs {total}", flush=True)
+    t0_all=time.perf_counter()
+    for aspect in T3_ASPECTS:
+        b=np.sqrt(0.1225/aspect); a=aspect*b
+        ell=Ellipse(center=(0.5,0.5), semi_axes=(float(a),float(b)))
+        for n in T3_NS:
+            mesh=unit_square_mesh(n)
+            for k in [1,2]:
+                for fid in T3_FORMULAS:
+                    psi=reg[fid]['psi']; is_agg=(fid=='F7')
+                    try:
+                        if is_agg:
+                            res=assemble_nitsche(mesh, ell, psi, k=k, f=f, g=u, aggregator=default_aggregator, eps_c=1e-3)
+                        else:
+                            res=assemble_nitsche(mesh, ell, psi, k=k, f=f, g=u)
+                        sp=spectral_measures(res.A)
+                        sol=SOLVERS["S1_lu"](res.A, res.rhs)
+                        full=res.expand(sol.x)
+                        # single-pass errors
+                        l2_tot=0; h1_tot=0
+                        for e in range(mesh.n_elements):
+                            region=cut_cell(ell, mesh.nodes[mesh.elements[e]], vol_order=max(10,2*k+4))
+                            if region.status=="empty": continue
+                            basis=PkBasis(k, mesh.nodes[mesh.elements[e]])
+                            loc=res.dofs[e]
+                            vals=basis.values(region.pts)
+                            diff=u(region.pts)-vals@full[loc]
+                            l2_tot+=float(np.sum(region.wts*diff*diff))
+                            grads=basis.grads(region.pts)
+                            guh=np.einsum("i,qid->qd", full[loc], grads)
+                            diff_h1=gu(region.pts)-guh
+                            h1_tot+=float(np.sum(region.wts*np.sum(diff_h1*diff_h1, axis=1)))
+                        l2=float(np.sqrt(l2_tot)); h1=float(np.sqrt(h1_tot))
+                        rows.append({"tier":"T3","aspect":aspect,"n":n,"k":k,"formula":fid,"kappa":float(sp['kappa']),"lambda_min":float(sp['lambda_min']),"l2_err":l2,"h1_err":h1,"a":float(a),"b":float(b)})
+                        if len(rows)%10==0:
+                            print(f"METRIC t3_progress aspect {aspect} n {n} k {k} fid {fid} kappa {sp['kappa']:.2e} elapsed {time.perf_counter()-t0_all:.1f}s", flush=True)
+                    except Exception as e:
+                        print(f"METRIC t3_failed aspect {aspect} n {n} k {k} fid {fid} err {e}", flush=True)
+                        rows.append({"tier":"T3","aspect":aspect,"n":n,"k":k,"formula":fid,"kappa":np.nan,"lambda_min":np.nan,"l2_err":np.nan,"h1_err":np.nan})
+    df=pd.DataFrame(rows)
+    for aspect in T3_ASPECTS:
+        for fid in T3_FORMULAS:
+            g=df[(df.aspect==aspect)&(df.formula==fid)&(df.k==1)]
+            if len(g)==0: continue
+            print(f"METRIC t3_summary aspect {aspect} fid {fid} median_kappa {g.kappa.median():.2e} N {len(g)}", flush=True)
+    return df
+
+
+def run_t1_star() -> pd.DataFrame:
+    """T1* fixed-Omega check: same cap construction but on extended mesh [-0.5,1.5] to avoid truncation.
+    Tests whether rate gate recovers when domain not truncated. Limited to F1,F3 for speed."""
+    reg=build_registry()
+    u,f,gu,dn = manufactured_2d()
+    rows=[]
+    fids=["F1","F3"]
+    for fid in fids:
+        psi=reg[fid]['psi']
+        for k in [1]:
+            hs=[]; errs=[]
+            for n in [8,16,32,64]:
+                mesh=extended_background_mesh(n, xmin=-0.5, xmax=1.5)
+                h=(1.5-(-0.5))/n  # =2/n
+                # Use same t1_circle but with extended mesh's h_ext? For comparability, keep original h=1/n for cap, but place disk same as T1
+                circ=t1_circle(n, 0.5)  # use eps=0.5 as representative
+                # Note t1_circle uses h=1/n, not h_ext, so cap height same as T1, but mesh is larger so disk fully inside
+                res=assemble_nitsche(mesh, circ, psi, k=k, f=f, g=u)
+                sp=spectral_measures(res.A)
+                sol=SOLVERS["S1_lu"](res.A, res.rhs)
+                full=res.expand(sol.x)
+                l2_tot=0; h1_tot=0
+                for e in range(mesh.n_elements):
+                    region=cut_cell(circ, mesh.nodes[mesh.elements[e]], vol_order=10)
+                    if region.status=="empty": continue
+                    basis=PkBasis(k, mesh.nodes[mesh.elements[e]])
+                    loc=res.dofs[e]
+                    vals=basis.values(region.pts)
+                    diff=u(region.pts)-vals@full[loc]
+                    l2_tot+=float(np.sum(region.wts*diff*diff))
+                    grads=basis.grads(region.pts)
+                    guh=np.einsum("i,qid->qd", full[loc], grads)
+                    diff_h1=gu(region.pts)-guh
+                    h1_tot+=float(np.sum(region.wts*np.sum(diff_h1*diff_h1, axis=1)))
+                l2=float(np.sqrt(l2_tot)); h1=float(np.sqrt(h1_tot))
+                hs.append(2.0/n); errs.append(h1)
+                rows.append({"tier":"T1star","formula":fid,"n":n,"k":k,"eps":0.5,"h":2.0/n,"kappa":float(sp['kappa']),"lambda_min":float(sp['lambda_min']),"l2_err":l2,"h1_err":h1})
+                print(f"METRIC t1star fid {fid} n {n} h {2.0/n:.4f} kappa {sp['kappa']:.2e} h1 {h1:.2e}", flush=True)
+            p,r2=fit_slope(np.array(hs), np.array(errs))
+            print(f"METRIC t1star_slope fid {fid} k {k} p {p:.3f} R2 {r2:.4f}", flush=True)
+            rows.append({"tier":"T1star-slope","formula":fid,"k":k,"slope_p":p,"slope_R2":r2})
+    return pd.DataFrame(rows)
+
+
 def main() -> int:
     out_dir = Path("results")
     out_dir.mkdir(exist_ok=True)
 
-    # First, quick benign sanity ( Logs separately but also included )
     print("METRIC stage benign_validation start", flush=True)
     df_benign = validate_benign()
     print("METRIC stage benign_validation done", flush=True)
@@ -409,51 +637,77 @@ def main() -> int:
     df_t1 = run_t1()
     print("METRIC stage T1 done", flush=True)
 
-    # Combine
-    df_all = pd.concat([df_benign, df_t1], ignore_index=True, sort=False)
-    path = out_dir / "t1_results.parquet"
-    df_all.to_parquet(path, index=False)
-    # Also write csv for quick inspection
-    csv_path = out_dir / "t1_results.csv"
-    # limit csv to T1 rows without NaN explosion
+    print("METRIC stage T1star start", flush=True)
     try:
-        df_t1.to_csv(csv_path, index=False)
+        df_t1star = run_t1_star()
+        print("METRIC stage T1star done", flush=True)
+    except Exception as e:
+        print(f"METRIC t1star_failed {e}", flush=True)
+        df_t1star = pd.DataFrame()
+
+    print("METRIC stage T2 start", flush=True)
+    try:
+        df_t2 = run_t2()
+        print("METRIC stage T2 done", flush=True)
+    except Exception as e:
+        print(f"METRIC t2_failed {e}", flush=True)
+        import traceback; traceback.print_exc()
+        df_t2 = pd.DataFrame()
+
+    print("METRIC stage T3 start", flush=True)
+    try:
+        df_t3 = run_t3()
+        print("METRIC stage T3 done", flush=True)
+    except Exception as e:
+        print(f"METRIC t3_failed {e}", flush=True)
+        import traceback; traceback.print_exc()
+        df_t3 = pd.DataFrame()
+
+    # Combine all
+    dfs = [df_benign, df_t1]
+    if len(df_t1star): dfs.append(df_t1star)
+    if len(df_t2): dfs.append(df_t2)
+    if len(df_t3): dfs.append(df_t3)
+    df_all = pd.concat([d for d in dfs if len(d)], ignore_index=True, sort=False)
+    path = out_dir / "all_results.parquet"
+    df_all.to_parquet(path, index=False)
+    # Keep legacy t1 path for compat
+    t1_path = out_dir / "t1_results.parquet"
+    pd.concat([df_benign, df_t1], ignore_index=True, sort=False).to_parquet(t1_path, index=False)
+    try:
+        df_t2.to_parquet(out_dir / "t2_results.parquet", index=False)
+        df_t3.to_parquet(out_dir / "t3_results.parquet", index=False)
+        df_t1star.to_parquet(out_dir / "t1star_results.parquet", index=False)
+    except Exception:
+        pass
+    try:
+        df_all.to_csv(out_dir / "all_results.csv", index=False)
     except Exception:
         pass
 
     versions = {"numpy": np.__version__, "pandas": pd.__version__}
     try:
-        import scipy
-        versions["scipy"] = scipy.__version__
-    except Exception:
-        pass
+        import scipy; versions["scipy"]=scipy.__version__
+    except Exception: pass
     try:
-        import pyamg
-        versions["pyamg"] = pyamg.__version__
-    except Exception:
-        pass
-
-    print("METRIC package_versions " + ";".join(f"{a}={b}" for a, b in sorted(versions.items())), flush=True)
+        import pyamg; versions["pyamg"]=pyamg.__version__
+    except Exception: pass
+    print("METRIC package_versions " + ";".join(f"{a}={b}" for a,b in sorted(versions.items())), flush=True)
     print(f"METRIC results_file {path}", flush=True)
-    # Print summary for H1 gate quick check
-    # Count coercivity violations per formula
+    print(f"METRIC t1_results_file {t1_path}", flush=True)
+    # H1 gate summary (4-point, n=64)
     for fid in T1_FORMULAS:
-        sub = df_t1[(df_t1["formula"] == fid) & (df_t1["tier"] == "T1") & (df_t1["solver"] == "S1_lu")]
-        if len(sub) == 0:
-            continue
-        # check gamma <1e-8 at n=128
-        worst = sub[sub["n"] == 128]
+        sub = df_t1[(df_t1["formula"]==fid)&(df_t1["tier"]=="T1")&(df_t1["solver"]=="S1_lu")]
+        if len(sub)==0: continue
+        worst=sub[sub["n"]==64]
         if len(worst):
-            min_gamma = worst["lambda_min"].min()
-            viol = (worst["lambda_min"] < 1e-8).sum()
-            print(f"METRIC h1_gate fid {fid} n128_min_gamma {min_gamma:.2e} violations_lt1e-8 {viol}/{len(worst)}", flush=True)
-        # check slope gates
-        slope_df = df_t1[(df_t1["formula"] == fid) & (df_t1["tier"] == "T1-slope")]
-        # energy slopes
-        if len(slope_df):
-            bad = slope_df[(slope_df["quantity"] == "energy") & ((slope_df["slope_R2"] < 0.98) | (np.abs(slope_df["slope_p"] - slope_df["k"]) > 0.1 * slope_df["k"]))]
-            print(f"METRIC slope_gate fid {fid} energy_bad {len(bad)}/{len(slope_df[slope_df['quantity']=='energy'])}", flush=True)
-
+            mg=worst["lambda_min"].min(); viol=(worst["lambda_min"]<1e-8).sum()
+            print(f"METRIC h1_gate fid {fid} n64_min_gamma {mg:.2e} violations_lt1e-8 {viol}/{len(worst)}", flush=True)
+        sldf=df_t1[(df_t1["formula"]==fid)&(df_t1["tier"]=="T1-slope")]
+        if len(sldf):
+            bad=sldf[(sldf["quantity"]=="energy")&((sldf["slope_R2"]<0.98)|(np.abs(sldf["slope_p"]-sldf["k"])>0.1*sldf["k"]))]
+            print(f"METRIC slope_gate fid {fid} energy_bad {len(bad)}/{len(sldf[sldf['quantity']=='energy'])}", flush=True)
+    # T2 median summary already printed inside run_t2; T3 inside run_t3
     return 0
 
 
