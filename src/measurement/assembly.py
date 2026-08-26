@@ -299,12 +299,11 @@ def ghost_penalty_matrix(
             Da = np.concatenate([dna, np.zeros((len(t), ndb))], axis=1)
             Db = np.concatenate([np.zeros((len(t), nda)), dnb], axis=1)
             Dj = Da - Db
-            Jloc = gw @ (Dj * Dj)
+            Jloc = np.einsum("qi,qj,q->ij", Dj, Dj, gw)
             both = np.concatenate([la, lb]).astype(int)
-            r_ = np.repeat(both, nda + ndb)
-            c_ = np.tile(both, nda + ndb)
-            rows.extend(r_.tolist())
-            cols.extend(c_.tolist())
+            n = len(both)
+            rows.extend(np.repeat(both, n).tolist())
+            cols.extend(np.tile(both, n).tolist())
             vals.extend((scale * Jloc).ravel().tolist())
     return sp.coo_matrix((vals, (rows, cols)), shape=(n_dof, n_dof)).tocsr()
 
