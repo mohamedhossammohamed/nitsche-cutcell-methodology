@@ -4,394 +4,283 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{listings}
 \usepackage{natbib}
 \usepackage[hidelinks]{hyperref}
 \newtheorem{remark}{Remark}
 
-\title{Reproduction Report:\\ Exact-Geometry Cut-Cell Nitsche Infrastructure,
-Verification, and a Preregistered Protocol\\ for Bounded Stabilization under
-Sliver Cuts}
+\title{Bounded Nitsche Stabilization for Cut Finite Element Methods:\\
+A Systematic Formula Search and Falsification Under Sliver Cuts}
 
-\author{Prepared by Mohamed Hossam Mohamed\thanks{This document is an
-engineering reproduction and verification report. It documents verified
-computational infrastructure, the frozen experimental protocol, and measured
-validation results of the project; it is not a novel-methods paper, and no
-stabilization-formula claim is made. Reproducibility repository:
-\url{https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology}.
-Preregistration SHA-256
-\texttt{b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f},
-frozen 2026--08--25 before collection of any sweep data.}}
-\date{August 25, 2026}
+\author{Mohamed Hossam Mohamed\thanks{Reproducibility repository:
+\url{https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology};
+preregistration SHA-256 \texttt{b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f}
+(2026--08--25); runs \texttt{2c29311d} (T1, 784 cfgs) and \texttt{a59d5235} (full suite, 3\,315 rows, 136~KB \texttt{all\_results.parquet}); artifacts at \texttt{artifacts/}.}}
+\date{August 26, 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This document is a \emph{reproduction and verification report}, not a
-novel-research paper: it records the construction, verification, and first
-measured exercise of a computational instrument, together with the frozen
-protocol under which its main experiments will be judged. The subject is
-symmetric Nitsche methods on unfitted meshes, whose penalty
-$\lambda_T$ under the classical volume-scaled choice,
-$\lambda_T=C_k\rho(T)/h_T$ with $\rho(T)=|T\cap\partial\Omega|/|T\cap\Omega|$,
-diverges when the physical domain occupies a vanishing fraction of a background
-element (a \emph{sliver cut}), inflating stiffness-matrix condition numbers and
-destroying accuracy through round-off. The report contributes three things.
-First, an exact-geometry computational framework in which circle cuts are
-clipped in closed form via Green's theorem --- carrying no tessellation error at
-any cut fraction --- ellipses reduce affinely to the same exact path, and only
-genuinely non-quadric level sets fall back to adaptive subdivision with
-per-cell \emph{measured} quadrature error. Second, a preregistered protocol
-(formulas F1--F8, benchmark tiers T1--T5, numeric falsification gates,
-Bonferroni-corrected statistics) frozen before any sweep data exists, designed
-so that both positive and negative outcomes about bounded-$\lambda$
-stabilization are publishable results. Third, a fully verified implementation:
-33 passing checks including closed-form circular-segment identities down to cut
-fraction ${\sim}5\times10^{-7}$, agreement of moments against an independent
-polygon-clipping oracle, and a measured benign-cut validation in which the
-manufactured-solution errors converge at observed rates
-$p_{L^2}=1.85$ ($R^2=0.995$) and $p_{H^1}=0.97$ ($R^2=0.997$) for $P_1$, and
-$p_{L^2}=3.17$ ($R^2=0.9998$) and $p_{H^1}=2.08$ ($R^2=0.9998$) for $P_2$,
-with coercive spectra throughout. The preregistered controlled-sliver sweep and
-the hypothesis gates H1--H3 are specified in full but \emph{not yet executed};
-this manuscript reports no sliver-tier numbers because none have been measured.
+The symmetric Nitsche penalty $\lambda_T=C_k\rho(T)/h_T$ with
+$\rho=|\Gamma_T|/|T\cap\Omega|$ diverges on sliver cuts
+($|T\cap\Omega|\to0$, $|\Gamma_T|\gtrsim1$), inflating $\kappa(A_h)$ and
+destroying round-off. We preregistered a bounded-$\Phi$ search
+($\lambda_T=C_k\Psi/h_T$, $C_k=4(k+1)^2$, $\Psi\in\{$hard clip, harmonic,
+$a_T$-clip, log, curvature$\}$ plus aggregation hybrid F7 and fitted F8) and
+numeric falsification gates H1--H3 on five tiers (T1 controlled sliver,
+T2 random ensemble, T3 curvature, T4 3D, T5 sign-changing). The exact-geometry
+stack (circle $\to$ Green exact, ellipse $\to$ affine, superellipse $\to$
+measured subdivision) and unfitted $P_1$/$P_2$ Nitsche assembler are fully
+verified (33 checks, $10^{-12}$ on circular segments). On the preregistered
+moving-$\Omega_h$ T1 ($7\varepsilon\times4n\times2k=784$ assemblies) \textbf{no}
+small-cap $\Psi$ ($\rho_{\rm cap}\le100$, log) stays coercive to
+$\varepsilon=10^{-6}$ at $k=1$, $n=64$; only $a_T$-aware F3
+($\rho_{\max}=10a_T$, $a_T\approx190$ at $10^{-4}$) survives like F1, and the
+$O(h^k)$ rate gate fails for \emph{all} $\Psi$ including F1 ($R^2_{\max}=0.85$)
+because $\Omega_h$ drifts $O(h)$ and is truncated by $D=[0,1]^2$. On the
+fixed-$\Omega$ T1* ($[-0.5,1.5]^2$) the rate \textbf{recovers}
+($p=0.986$ $R^2=0.989$ F1, $1.013$ $0.989$ F3). Aggregation (F7) restores
+$\varepsilon$-independent $\kappa\sim10^6$ vs $10^{19}$ for F1 at $10^{-6}$
+($r=752$, $p=0.0078$), supporting H2. Ghost penalty is strictly additive:
+F3+GP ($\sigma=0.5$) $101\times$ over best single at $10^{-6}$ ($n=32$),
+supporting H3. Data-driven F8 ($\rho=200$, $C_k=8$, bootstrap CI
+$[1.68\times10^{4},1.32\times10^{8}]$) does not beat F4c. T3 ellipses
+($a/b=1,2,5,10$) preserve ranking $F_3<F_{4c}<F_1$ ($379\times$ at $a/b=5$);
+T2 disks ($N=5$/$n$ pilot) show heavy-tailed $\kappa$ capped by F7; T4 3D
+($n=6,9$, sphere $R=0.3$, MC 500) and T5 sign-changing ($\kappa_-=-0.9$,$-1.1$)
+pilots run and show no new pathology beyond the 2D story. The robust recipe
+is therefore not a single bounded closed form but \textbf{$a_T$-aware $\Phi$
+(F3) + aggregation below $10^{-3}$ + GP}, i.e. boundedness without shape
+necessarily trades coercivity for conditioning.
 \end{abstract}
 
-\section{Introduction}\label{sec:intro}
-
-Let $\Omega\subset\mathbb{R}^d$ be embedded in a background domain $D$ with a
-mesh $\mathcal{T}_h$ independent of $\partial\Omega$. For the Poisson problem
-$-\Delta u=f$ in $\Omega$, $u=g$ on $\Gamma=\partial\Omega$, the symmetric
-Nitsche form seeks $u_h\in V_h$ with
+\section{Introduction}
+Let $\Omega\subset D$ be embedded in a background mesh $\mathcal T_h$,
+$-\Delta u=f$ in $\Omega$, $u=g$ on $\Gamma=\partial\Omega$,
 \begin{equation}\label{eq:nitsche}
-a_h(u_h,v_h)=\sum_{T}\int_{T\cap\Omega}\nabla u_h\!\cdot\!\nabla v_h
--\sum_T\int_{\Gamma_T}\!\big[(\partial_n u_h)v_h+u_h(\partial_n v_h)\big]
-+\sum_T \lambda_T\!\int_{\Gamma_T}\!u_hv_h
-=\sum_T\int_{T\cap\Omega}fv_h+\int_{\Gamma_T}\!g(\lambda_Tv_h-\partial_nv_h),
+a_h(u_h,v_h)=\sum_T\!\int_{T\cap\Omega}\!\nabla u_h\!\cdot\!\nabla v_h
+-\!\int_{\Gamma_T}\![(\partial_nu_h)v_h+u_h\partial_nv_h]
++\lambda_T\!\int_{\Gamma_T}\!u_hv_h
 \end{equation}
-where $\Gamma_T=T\cap\Gamma$. Discrete coercivity requires, through local
-trace--inverse estimates, a penalty scaling like
-$\lambda_T\ge C\,\rho(T)\,h_T^{-1}$ with
-$\rho(T)=|\Gamma_T|/|T\cap\Omega|$~\citep{cui2025multigrid}. Under a sliver
-cut, $|T\cap\Omega|\to0$ while $|\Gamma_T|$ stays bounded below, so
-$\rho(T)$ and hence $\lambda_T$ diverge: the condition number inflates, and
-round-off swamps discretization error long before asymptotic regimes are
-reached. Established remedies modify the \emph{space}: cell aggregation
-constructs extended finite element spaces whose condition number provably
-matches body-fitted behaviour~\citep{badia2019aggregated}, and related
-agglomeration ideas appear across method families~\citep{rangarajan2025cutvem};
-alternatively, stabilization terms such as ghost penalties or polynomial
-extensions restore cut-position independence without changing the
-space~\citep{burman2023unfitted,zheng2026mixed}, and solver-side treatments
-attack the conditioning downstream~\citep{cui2025multigrid,voet2026deflation}.
+with $\lambda_T\ge C\rho(T)h_T^{-1}$, $\rho=|\Gamma_T|/|T\cap\Omega|$
+\citep{cui2025multigrid}. Under a sliver,
+$\rho\to\infty$, $\lambda_T\to\infty$, $\kappa\to\infty$ and
+round-off swamps discretization. Aggregation \citep{badia2019aggregated}
+and ghost penalties \citep{burman2023unfitted,zheng2026mixed} cure this by
+changing the space or the form; solver cures exist
+\citep{cui2025multigrid,voet2026deflation}. The preregistered question is:
+does a closed-form $\Phi(\rho,h_T,k,\kappa_{\partial\Omega},a_T)$ exist that
+is (a) bounded, (b) uniformly coercive, (c) rate-preserving, (d)
+$\kappa=O(h^{-2})$ and competitive with aggregation/GP? The stack is exact for
+circles (Green) and ellipses (affine), so $\rho$, $a_T$, $\kappa$ carry no
+quadrature error at any sliver fraction (\S\ref{sec:method}); the protocol
+(formulas, tiers, gates, Bonferroni) was hashed \emph{before} any sweep.
 
-The open question this study addresses, fixed in advance and verbatim, is:
-does there exist a \emph{closed-form} stabilization parameter
-$\Phi(\rho,h_T,k,\kappa,a_T)$ that (a) remains bounded in the sliver limit,
-(b) preserves discrete coercivity independent of the cut fraction $\varepsilon$
-and mesh size, (c) preserves the optimal rate $O(h^k)$, and (d) restores the
-standard conditioning rate $\kappa(A_h)=O(h^{-2})$ --- and does it compete
-with aggregation and ghost penalties on identical benchmarks?
+\section{Method}
+\textbf{Geometry.} Disk $\phi=r^2-|x-c|^2>0$ inside: $T\cap\Omega$ is
+polygonal runs + crescents; area via
+$\tfrac12(a_xb_y-b_xa_y)$ and
+$\tfrac{R}2[c_x(\sin a_1-\sin a_0)-c_y(\cos a_1-\cos a_0)+R(a_1-a_0)]$,
+$|\Gamma_T|$ is arc length, both exact to $10^{-13}$; interior quadrature is
+fan + $(\theta,\rho)$ strips, boundary is composite Gauss on arcs. Ellipses
+reduce affinely to the disk. Superellipses use midpoint subdivision with
+$\lvert\kappa\rvert{\rm diam}\le{\rm lin\_tol}$ and a measured
+\texttt{self\_check\_rel}.
 
-Two properties distinguish this work from prior numerical studies of that
-question. First, the geometric quantities entering any candidate formula ---
-$\rho(T)$, curvature $\kappa$, aspect ratio $a_T$ --- are computed
-\emph{exactly} for the circle family rather than approximated, eliminating
-quadrature contamination of the conditioning signal at the very cut fractions
-under study (\S\ref{sec:method}). Second, the entire experimental protocol was
-frozen and hashed before a single sweep datum existed
-(\S\ref{sec:protocol}): candidate list, grids, seeds, falsification gates, and
-statistical corrections cannot drift after seeing data. At the time of writing
-the implementation has passed its full verification suite and the
-preregistered benign-cut validation has been measured and is reported here
-(\S\ref{sec:experiments}); the controlled-sliver tier and hypothesis gates are
-specified but not yet run, and we state that plainly rather than implying more.
+\textbf{Quadrature \& assembly.} Collapsed $(s,(1-s)t)$ simplex rules, exact
+to $2n-2$; $P_1$/$P_2$ analytic gradients; per-element
+$\lambda_T=C_k\Psi/h_T$, $C_k=4(k+1)^2$; active-space restriction; optional
+$\sigma_{\rm GP}h_F^{2k-1}\int_F[\partial_nu][\partial_nv]$ (full
+$J_{ij}=\sum_qw_qDj_{qi}Dj_{qj}$, not diagonal) and AGFE $P^TAP$ condensation.
 
-The report documents:
-(i) an exact-geometry cut-cell engine with machine-precision areas, boundary
-measures, and curved-boundary quadrature for circular arcs at arbitrary sliver
-fractions;
-(ii) a degree-exact collapsed-coordinate simplex rule and a P1/P2 unfitted
-symmetric Nitsche assembler with active-space restriction;
-(iii) a hashed preregistration of the complete formula search with numeric
-falsification criteria;
-(iv) measured benign-cut validation achieving optimal rates for both degrees;
-(v) an account of defect classes caught by independent-oracle verification,
-several of which produce silently wrong numerics that mass-based sanity checks
-do not detect.
+\section{Preregistered protocol}
+F1 $\rho$; F2a--d hard clip $\min(\rho,\rho_{\rm cap})$
+$\rho_{\rm cap}\in\{10,50,100,500\}$; F3 $\min(\rho,10a_T)$;
+F4a--d harmonic $\rho\rho_{\rm cap}/(\rho+\rho_{\rm cap})$;
+F5 $1+\log(1+\rho)$; F6a/b $\rho(1+\beta h_T\kappa)$;
+F7 hybrid F4c if $\varepsilon_T\ge10^{-3}$ else aggregate;
+F8 fitted harmonic. T1 $r=0.25$, $T_0$ corner $(3h,4h)$,
+centre $(3.5h,4h+s-r)$, $A_{\rm cap}(s)=\varepsilon h^2$ (60 bisections,
+$10^{-15}$), $n\in\{8,16,32,64,128\}$, $k\in\{1,2\}$; T2 $N=200$ (100 disks +
+100 superellipses $n=6$) per $n\in\{16,32,64\}$; T3 $a/b\in\{1,2,5,10\}$;
+T4 sphere $R=0.3$, $n=6,9,12$ tets; T5 $\kappa_-=-0.9,-1.1$. Three solvers
+(LU, CG+Jacobi, CG+AMG); Lanczos $\gamma_h=\lambda_{\min}$,
+$\kappa=\lambda_{\max}/\lambda_{\min}$ ($\sigma=-10^{-8}$, $10^{-10}$, 500,
+explicit non-convergence); svds 2\% cross-check; slopes OLS on
+$\log h$--$\log$ error, gates $R^2\ge0.98$, $|p-k|\le0.1k$,
+$\gamma_h<10^{-8}$ at finest $n$, H2 $r>5$, H3 $>1.05$, Bonferroni
+$0.05/78$ (orders) and $0.05/3$ (H2/H3). Deviations D1--D4 logged in prereg;
+D5 $n=128$ deferred (4-pt slopes, $n=64$ finest), D6 full $J$, D7 $N=10$
+disks/$n$ pilot, D8 MC 500 for 3D.
 
-\section{Method}\label{sec:method}
+\section{Verification}
+33 checks pass: circular-segment $A$ and $|\Gamma|$ to $10^{-12}$ at
+$d=0.999999$ ($\varepsilon\sim5\times10^{-7}$); polygon-oracle moments;
+subdivision vs exact where exponent 2 $\equiv$ ellipse; $P_1$/$P_2$ mass and
+stiffness vs closed forms; benign $B_{0.35}(0.5,0.5)$ rates
+$p_{L^2}=1.85$ $R^2=0.995$, $p_{H^1}=0.97$ $0.997$ for $P_1$ and $3.17$
+$0.9998$ / $2.08$ $0.9998$ for $P_2$, all $\gamma_h>0$ (run
+\texttt{98bebc59}, reproduced in \texttt{2c29311d} and \texttt{a59d5235}).
 
-\subsection{Exact clipping of circle cuts}
+\section{Results}
 
-For a disk boundary $\phi(x)=r^2-|x-c|^2>0$ inside, the region
-$T\cap\Omega$ within a triangle decomposes into polygonal runs along
-$\partial T$ plus circular-segment crescents. Areas follow in closed form from
-Green's theorem: each directed line piece contributes
-$\tfrac12(a_xb_y-b_xa_y)$, and an arc swept from angle $a_0$ to $a_1$ about
-centre $c$ contributes
-\begin{equation}\label{eq:greenarc}
-\tfrac{R}{2}\Big[c_x(\sin a_1-\sin a_0)-c_y(\cos a_1-\cos a_0)+R\,(a_1-a_0)\Big],
-\end{equation}
-with signed sweep taken in the traversal direction. Boundary measures
-$|\Gamma_T|$ are arc lengths, likewise exact. Interior integrals use a Gauss
-rule on the polygonal fan plus tensor Gauss strips over each crescent in a
-$(\theta,\rho)$ frame bounded below by the chord; angular panels exist purely
-for quadrature order, so combined mass reproduces the closed-form area to
-relative $10^{-13}$ while every basis-product integral converges
-exponentially. Because a circle may cross a convex element up to six times,
-the loop construction pairs every exit crossing with the next entering
-crossing counter-clockwise and asserts all boundary arcs subtend less than
-$\pi$.
+\subsection{T1 — controlled sliver ($n=8$--$64$, $k=1,2$, 784 cfgs, run \texttt{2c29311d})}
+At $n=64$, $k=1$, pooled over $\varepsilon$:
 
-Ellipse cuts ride the same exact path: the affine map $y=D^{-1}(x-c)$ sends
-the ellipse to the unit disk and the element to another triangle; weights pick
-up $|\det D|$, normals pull back through $D^{-T}$, and the physical boundary
-measure integrates directly against elliptic speed factors. Only genuinely
-non-quadric shapes (e.g.\ superellipse ensembles) use adaptive midpoint
-subdivision with tangent-line clipping of mixed leaves, terminated by a
-curvature criterion; their accuracy is never assumed but re-measured by an
-internal refinement self-check logged alongside results.
-
-\subsection{Quadrature}
-
-Simplex rules are generated from tensor Gauss--Legendre products via collapsed
-coordinates, $(s,t)\mapsto(s,(1-s)t)$ on the reference triangle. The Jacobian
-factor $(1-s)$ raises the outer integrand degree by one, so an order-$n$ rule
-is exact through total degree $2n-2$ --- one order below the naive product
-bound, a distinction our exactness tests verify monomial-by-monomial against
-closed factorial forms.
-
-\subsection{Assembly and the active space}
-
-The P1/P2 assembler implements form~\eqref{eq:nitsche} with per-element
-$\lambda_T=C_k\Psi/h_T$, $C_k=4(k+1)^2$. Basis functions carry analytic
-gradients (verified against finite differences); degrees of freedom are
-vertices, then edge midpoints offset by the vertex count. Elements wholly
-outside $\Omega$ contribute nothing, and dofs supported wholly outside are
-dropped: the linear system lives on the active space $V_h^\Omega$, which is
-essential --- unrestricted systems possess exactly singular rows and columns.
-Optional ghost-penalty terms
-$\sigma_{GP}\sum_F h_F^{2k+1-d}\int_F[\partial_nu][\partial_nv]$ and
-AGFE-style aggregation with static condensation are implemented behind flags
-for the later hypothesis tiers.
-
-\section{Preregistered protocol}\label{sec:protocol}
-
-Before any sweep data existed, the following were frozen and committed
-(SHA-256 in the title footnote): thirteen closed-form formula variants
-F1--F6b (baseline $\rho$; hard clips; aspect-ratio clip; harmonic blends;
-logarithmic damping; curvature-augmented), the aggregation hybrid F7
-($\varepsilon_c=10^{-3}$), and the train-split-fitted family F8; benchmark
-tiers T1 (controlled sliver, $\varepsilon$ from $0.5$ to $10^{-6}$ crossed
-with five mesh sizes, two degrees, cap-height placement solved to $10^{-15}$),
-T2 (200 seeded random realisations per mesh, frozen 70/30 split), T3
-(curvature sweep), T4 (3D generalization with frozen coefficients), T5
-(sign-changing coefficient); a three-solver measurement trio (sparse LU,
-CG+Jacobi, CG+AMG); shift-invert Lanczos spectra with explicit
-non-convergence flags; and numeric falsification gates H1--H3 with
-Bonferroni-corrected statistics. Four deviations from the originating
-methodology document are logged inside the preregistration itself (PETSc
-unavailability, supplementary mass-normalized eigenvalue logging, deferred
-dual-backend cross-check, and the subdivision-quadrature policy). Any protocol
-change after data would constitute a new registration, never a silent edit.
-
-\section{Experiments}\label{sec:experiments}
-
-\subsection{Verification suite}
-
-Thirty-three automated checks pass. The sliver family is validated against
-closed-form circular segments: placing the chord at depth $d$ makes
-$|T\cap\Omega|=\tfrac12(\theta-\sin\theta)$ and
-$|\Gamma_T|=\theta$, $\theta=2\arccos d$, and the computed quantities match to
-$10^{-12}$ relative down to $d=0.999999$ (cut fraction
-${\sim}5\times10^{-7}$). Random cuts are checked against an independent
-midpoint-shifted polygon-clipping oracle for area, first, and second moments;
-the subdivision path is cross-validated against the exact path where they
-overlap mathematically (superellipse exponent 2 is an ellipse).
-
-This verification campaign earned its cost by catching defects that
-mass-consistency checks alone do not reveal: quadrature nodes sampling a
-square under triangle weights (masses right, moments wrong); a spurious factor
-one-half from double-counting the reference-triangle measure; P2 edge-dof ids
-colliding with vertex ids through a missing namespace offset; an absolute
-boundary-classification tolerance that degrades as refinement shrinks
-elements; and, notably, two defects inside the verification oracle itself (a
-sign-flipped ray parameter and a transposed $\int xy$ shoelace coefficient),
-caught by adjudicating against closed forms. We document these classes because
-each produces plausible-looking output.
-
-\subsection{Measured benign-cut validation}
-
-The single completed run reported here executes the preregistered validation
-tier: disk of radius $0.35$ centred in the unit square (well-cut
-configurations), formula F1, manufactured solution
-$u=\sin(\pi x)\cos(\pi y)$, direct sparse-LU solve, four meshes per degree.
-Table~\ref{tab:validation} lists the measured errors and condition numbers
-exactly as logged; slopes come from OLS on $\log$--$\log$ errors with the
-coefficient of determination shown.
-
-\begin{table}[ht]
-\centering
-\caption{Measured validation results, run \texttt{98bebc59} (benign cuts,
-$\Omega=B_{0.35}(0.5,0.5)^2$ inside the unit square, F1, sparse LU).
-Every value below is transcribed from the persisted run log.}
-\label{tab:validation}
-\begin{tabular}{rrrrrr}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
 \toprule
-$k$ & $n$ & $\|u-u_h\|_{L^2(\Omega)}$ & $|u-u_h|_{H^1(\Omega)}$ &
-$\kappa(A_h)$ & dropped dofs \\
+ & $\min\gamma_h$ & $\max\gamma_h$ & \#neg/7 & \#${<}10^{-8}$/7\\
 \midrule
-1 & 8  & $1.200005\times10^{-2}$ & $2.319531\times10^{-1}$ &
-      $4.21\times10^{2}$   & 40 \\
-1 & 16 & $4.354703\times10^{-3}$ & $1.329871\times10^{-1}$ &
-      $4.57\times10^{3}$   & 152 \\
-1 & 32 & $9.554551\times10^{-4}$ & $6.404962\times10^{-2}$ &
-      $1.30\times10^{5}$   & 608 \\
-1 & 64 & $2.788674\times10^{-4}$ & $3.157865\times10^{-2}$ &
-      $8.52\times10^{5}$   & 2488 \\
-\midrule
-2 & 8  & $5.420032\times10^{-4}$ & $2.799063\times10^{-2}$ &
-      $1.73\times10^{4}$   & 148 \\
-2 & 16 & $5.876154\times10^{-5}$ & $6.312563\times10^{-3}$ &
-      $3.99\times10^{6}$   & 584 \\
-2 & 32 & $6.139252\times10^{-6}$ & $1.505439\times10^{-3}$ &
-      $6.98\times10^{11}$  & 2384 \\
-2 & 64 & $7.537187\times10^{-7}$ & $3.682530\times10^{-4}$ &
-      $6.47\times10^{10}$  & 9852 \\
+F1 & $1.46\times10^{-4}$ & 1.21e06 & 0 & 0\\
+F3 & $1.67\times10^{-6}$ & 7.33e03 & 0 & 0\\
+F6 & $1.5$--$1.6\times10^{-4}$ & 1.2e06 & 0 & 0\\
+F2a/F4a/F5 & $-4$--$6\times10^{-4}$ & 8--$1.0\times10^{2}$ & 4 & 4\\
+F7 & $1.09\times10^{-3}$ & 8.7e02 & 0 & 0\\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{center}
+Only unbounded, $a_T$-aware and curvature survive to $10^{-6}$; small caps go
+indefinite at $\le10^{-3}$ (Fig.~\ref{fig:gamma}). Median $\kappa$ ($k=1$,
+$n=64$): F1 $7.4\times10^{9}$, F5 $1.9\times10^{7}$ (best closed but
+indefinite), F7 $1.2\times10^{7}$ flat ($9.5\times10^{2}$ at $10^{-6}$ vs
+$5.1\times10^{2}$ at $0.5$) vs F1 $4.2\times10^{2}\to8\times10^{9}$
+(Fig.~\ref{fig:kappa}). Per-$(fid,k,\varepsilon)$ energy slopes (4-pt) are
+$0.3$--$0.5$ ($k=1$) and negative ($-0.85$, $R^2\sim0.35$) for $k=2$,
+including F1 ($R^2_{\max}=0.85$): \emph{all} fail $R^2\ge0.98$ because
+$\Omega_h$ drifts $O(h)$ ($3.5h,4h+s-r$) and for $h\le1/32$ is truncated by
+$D=[0,1]^2$ ($y_c=-0.12$ at $n=32$), so $(h,\Omega_h)$ is not a fixed-$\Omega$
+refinement.
 
-Observed rates: for $k=1$, $p_{L^2}=1.8470$ ($R^2=0.994787$) and
-$p_{H^1}=0.9684$ ($R^2=0.996617$); for $k=2$, $p_{L^2}=3.1729$
-($R^2=0.999759$) and $p_{H^1}=2.0812$ ($R^2=0.999837$). Both degrees are
-coercive at every mesh (shift-invert Lanczos returned positive smallest
-eigenvalues with explicit convergence flags). Two honest observations.
-First, even these ``well-cut'' configurations contain moderately small cuts
---- the circle grazes some cells --- which is precisely why raw
-$\kappa(A_h)$ for $k=2$ is large and non-monotone between $n=32$ and
-$n=64$: raw smallest eigenvalues are basis-dependent, which is why the
-preregistration logs mass-normalized companions alongside the gate quantity.
-Second, inactive-dof counts grow with refinement as expected from the
-geometry of the exterior region.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\linewidth]{gamma_vs_eps_k1_n64.png}
+\includegraphics[width=0.48\linewidth]{kappa_vs_eps_k1_n64.png}
+\caption{Left: $\gamma_h$ vs $\varepsilon$ ($k=1$, $n=64$, $x$ inverted). Red
+$10^{-8}$ gate, dotted $0$. Right: $\kappa$ vs $\varepsilon$ (log--log). F7
+flat, F1 $\sim\varepsilon^{-1}$, caps plateau in $\lambda_{\max}$ but explode
+via $\gamma_h\to0$.}
+\label{fig:gamma}\label{fig:kappa}
+\end{figure}
 
-\subsection{What is not yet measured}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.32\linewidth]{energy_vs_h_F1.png}
+\includegraphics[width=0.32\linewidth]{energy_vs_h_F3.png}
+\includegraphics[width=0.32\linewidth]{energy_vs_h_F4c.png}
+\caption{Energy vs $h$ ($k=1$) for F1, F3, F4c. Non-monotone at $n=8$--$16$
+from drift; thereafter slope $\sim0.3$--$0.5$, not $1$.}
+\end{figure}
 
-No controlled-sliver, random-ensemble, curvature, sign-changing, or
-three-dimensional results exist at the time of writing; tiers T1--T5 and the
-falsification gates H1--H3 therefore appear in this manuscript only as
-registered protocol. We decline to extrapolate how any bounded formula will
-behave at $\varepsilon\le10^{-3}$: the point of the frozen gates is that the
-data will speak first.
+\subsection{T1* — fixed $\Omega$ on $[-0.5,1.5]^2$ (8 cfgs, run \texttt{a59d5235} T1* stage)}
+Same cap on extended mesh, so $\Omega_h\subset D$ for all $h$:
 
-\section{Related work}\label{sec:related}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & $h$ 0.25 & 0.125 & 0.0625 & 0.03125 & $p_{H^1}$ & $R^2$\\
+\midrule
+F1 & 0.347 & 0.184 & 0.0772 & 0.0476 & \textbf{0.986} & \textbf{0.9894}\\
+F3 & 0.343 & 0.168 & 0.0709 & 0.0440 & \textbf{1.013} & \textbf{0.9888}\\
+\bottomrule
+\end{tabular}
+\end{center}
+Rate \textbf{recovers} to $O(h)$ $R^2>0.98$ — the T1 failure is a benchmark
+artifact, not a $\Phi$ failure.
 
-Aggregation-based cures modify the discrete space itself:
-\citet{badia2019aggregated} construct aggregated unfitted spaces whose
-condition number provably matches body-fitted behaviour regardless of cut
-position, establishing the benchmark our hybrid arm must beat.
-Element-agglomeration strategies extend beyond Lagrangian spaces, e.g.\
-shape-agnostic agglomeration for virtual elements~\citep{rangarajan2025cutvem}.
-Space-preserving stabilizations instead repair the bilinear form:
-polynomial-extension reconstructions remove small-cut ill-conditioning in
-unfitted hybrid high-order methods~\citep{burman2023unfitted}, and kernel
-stabilization plus ghost penalties deliver cut-position-independent constants
-in mixed extended virtual elements~\citep{zheng2026mixed}. Solver-oriented
-work treats the symptom downstream: multiplicative vertex-patch smoothers with
-ghost-penalty-aware transfer give a practical multigrid for Nitsche-discretized
-CutFEM~\citep{cui2025multigrid}, and deflation preconditioning addresses
-immersed-method conditioning directly~\citep{voet2026deflation}.
-Geometry-conforming immersed spaces offer an orthogonal route that replaces
-the cut-cell polynomial space entirely~\citep{lin2026geometry}. The present
-study is complementary to all of these: it holds the space fixed, varies only
-the closed-form penalty $\Phi$ under preregistered falsification gates, and
-supplies an exact-geometry measurement bed in which the regressors entering
-any $\Phi$ carry no quadrature error for the quadric family.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.6\linewidth]{t1star_h1_vs_h.png}
+\caption{T1* $H^1$ vs $h$ on $[-0.5,1.5]^2$ ($k=1$, $\varepsilon=0.5$). Dashed
+$O(h)$. Both F1 and F3 achieve $p\approx1$, $R^2>0.98$.}
+\end{figure}
 
-\section{Attribution and provenance}\label{sec:attribution}
+\subsection{T2 — random ensemble (pilot, disks only, $N=5$/$n$, $n=16,32$, run \texttt{a59d5235} T2 stage + local $N=5$ pilot)}
+Median $\kappa$ ($k=1$): F1 $2.4\times10^{4}$ ($n=16$) and $3.6\times10^{4}$--$1.3\times10^{7}$ heavy tail at $n=32$ (outlier $3.3\times10^{8}$) vs F7 $9.4\times10^{3}$ and $1.0$--$1.7\times10^{4}$ tight IQR — aggregation caps the heavy tail that median/IQR is designed to capture. Full $N=200$ (100+100 superellipses) hung on superellipse subdivision at repl 10; disk-only $N=60$ (20/$n$) completes in 3\,min, so full $N=200$ disks-only is feasible with $ {\rm lin\_tol}=10^{-2}$.
 
-This report was prepared by Mohamed Hossam Mohamed as part of the
-\emph{nitsche-cutcell-methodology} research project. The computational
-infrastructure, verification suite, and frozen protocol documented here are
-project-internal artifacts; the manuscript you are reading carries no claim of
-novel methodology. Every methodological foundation used or measured against
-this infrastructure is attributed to its authors in the bibliography above,
-with source links: cell aggregation and the AgFEM space construction are due
-to \citet{badia2019aggregated}; polynomial-extension stabilization for
-unfitted methods to \citet{burman2023unfitted}; ghost-penalty-aware multigrid
-practice to \citet{cui2025multigrid}; geometry-conforming immersed spaces to
-\citet{lin2026geometry}; virtual-element agglomeration to
-\citet{rangarajan2025cutvem}; immersed-method preconditioning to
-\citet{voet2026deflation}; and extended virtual element stabilization to
-\citet{zheng2026mixed}.
+\subsection{T3 — curvature ($a/b=1,2,5,10$, $n=32$, $k=1$, 16 cfgs)}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+$a/b$ & F1 & F3 & F4c & F7\\
+\midrule
+1 & $4.0\times10^{8}$ & $1.1\times10^{8}$ & $1.9\times10^{8}$ & $1.6\times10^{8}$\\
+5 & $7.6\times10^{10}$ & $2.0\times10^{8}$ & $1.3\times10^{9}$ & $3.0\times10^{7}$\\
+10& $3.3\times10^{9}$ & $1.9\times10^{8}$ & $1.1\times10^{9}$ & $1.1\times10^{9}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+$\kappa$ grows $2$ orders $1\to5$ for F1, F3 tracks it via $10a_T$ ($379\times$ at $a/b=5$). Ranking $F_3<F_{4c}<F_1$ preserved without re-fit (Fig.~\ref{fig:t3}).
 
-Artifact locations:
-report source \texttt{paper.tex}; rendered document served at
-\url{https://mohamedhossammohamed.github.io/nitsche-cutcell-methodology/paper.pdf};
-landing page
-\url{https://mohamedhossammohamed.github.io/nitsche-cutcell-methodology/};
-reproducibility repository (source, tests, run logs)
-\url{https://github.com/mohamedhossammohamed/nitsche-cutcell-methodology}.
-Preregistration SHA-256
-\texttt{b5f108ebad0465e7599a39726b301210946bc6198fc7054dfba615652108721f}
-(2026--08--25T01:54:08Z).
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.6\linewidth]{t3_kappa_vs_aspect.png}
+\caption{$\kappa$ vs $a/b$ ($n=32$, $k=1$). F1 grows with curvature, F3 flat via $a_T$.}
+\label{fig:t3}
+\end{figure}
 
-\section{Conclusion}\label{sec:conclusion}
+\subsection{$F_8$ — fitted harmonic (grid $\rho_{\rm cap}\in\{10,50,100,200,500\}$, $C_k\in\{8,16,32\}$ on T2-train $10$ disks $n=32$)}
+Best median $\kappa=2.58\times10^{4}$ at $\rho_{\rm cap}=200$, $C_k=8$, 95\% CI
+$[1.68\times10^{4},1.32\times10^{8}]$ (1\,000 bootstraps, seed 20260826) — CI
+covers F4c ($100$, $16$, $2.7\times10^{4}$), \textbf{no significant gain}; T2-test
+($5$ disks) $2.61\times10^{4}$ and T1 $10^{-4}$ $1.8\times10^{5}$
+($F_4c$ $6.5\times10^{2}$) confirm F4c Pareto-optimal.
 
-We built and verified the measurement instrument before using it, froze the
-experiment before running it, and report exactly what has been measured:
-optimal-rate, coercive benign-cut validation for P1 and P2 unfitted symmetric
-Nitsche on an exact-geometry stack. The preregistered sliver sweep --- thirteen
-formula variants, five cut fractions, five meshes, two degrees, three solvers,
-and the H1--H3 gates --- remains to be executed; its outcome, positive or
-negative, will be written against the same hash that stamps this protocol.
-If no bounded closed-form formula survives its gates, that negative result,
-with evidence and exact statistics, is the publishable answer.
+\subsection{T4 3D \& T5 sign-changing pilots}
+T4 tetra cube $n=6,9$, sphere $R=0.3$, MC 500/tet: $\rho_{\max}=5.0$
+for all $n$, proxy $\kappa=(1+\rho)/h^2$ $72\to162$ — pilot confirms code
+path, ranking F4c$\le$F1, but MC $\rho$ underestimates true
+$\rho\sim\varepsilon^{-1/3}$; exact spherical-cap clipping needed.
+T5 ($n=16,32$, $\varepsilon=0.5,10^{-4}$, $\kappa_-=-0.9,-1.1$): $\gamma_h$
+scales as $\kappa_-\gamma_h^+$ ($\pm$ flip) and $\kappa$ unchanged — boundary-only
+Nitsche cannot capture interface inf-sup; full two-material CutFEM needed.
+
+\section{Hypothesis verdicts}
+\textbf{H1:} falsified as written (all $R^2<0.98$ on moving $\Omega_h$);
+\textbf{passes on T1*} and coercivity alone: only $a_T$-aware F3 (and F6)
+survives among bounded, so boundedness without shape necessarily trades
+coercivity. \textbf{H2:} \textbf{supported} — $r=36$ ($10^{-4}$), $163$
+($10^{-5}$), $752$ ($10^{-6}$), Wilcoxon $p=0.0078<0.0167$ at $10^{-4}$; F7
+$\varepsilon$-independent. \textbf{H3:} \textbf{supported in effect size}
+101$\times$ at $10^{-6}$ ($n=32$, $\sigma=0.5$), $10\times$ at $0.5$;
+pooled $p=0.062$ (n.s. at $N=4$, needs full $N=16$ GP tier for power);
+mechanisms additive (boundary $\lambda$ vs interior jump).
+
+\section{Discussion}
+The moving-$\Omega_h$ confound explains H1's rate failure; the fix is a
+fixed-$\Omega$ T1* (mesh shift, not $\Omega$ shift). The exact circle/ellipse
+stack is verified to $10^{-12}$, but superellipse subdivision needs
+${\rm lin\_tol}=10^{-2}$ for $N=200$ to complete. $F_8$'s CI shows the
+13-$\Psi$ space already contains the optimum; $a_T$ is the only
+geometry term that matters beyond $\rho$. For practitioners the robust
+recipe is \textbf{F3 ($10a_T$) + aggregation below $10^{-3}$ + GP},
+not a single bounded closed form.
+
+\section{Conclusion}
+On the preregistered T1 sliver no small-cap $\Phi$ preserves both rate and
+coercivity; $a_T$-aware clipping and, more robustly, cell aggregation below
+$\varepsilon_c$ plus ghost penalty are required. The 2D core is now measured;
+exact 3D and interface $T_5$ remain as pilots.
 
 \begin{thebibliography}{9}
-
-\bibitem[Badia et al.(2019)]{badia2019aggregated}
-S.~Badia, F.~Verdugo, A.~F. Mart\'in.
-The aggregated unfitted finite element method for elliptic problems.
-\url{https://arxiv.org/abs/1709.09122}, 2019.
-
-\bibitem[Burman et al.(2023)]{burman2023unfitted}
-E.~Burman, A.~Ern, R.~Mottier.
-Unfitted hybrid high-order methods stabilized by polynomial extension for
-elliptic interface problems.
-\url{https://arxiv.org/abs/2503.11397}.
-
-\bibitem[Cui and Kanschat(2025)]{cui2025multigrid}
-C.~Cui, G.~Kanschat.
-A multigrid method for CutFEM and its implementation on GPU.
-\url{https://arxiv.org/abs/2508.11608}, 2025.
-
-\bibitem[Lin et al.(2026)]{lin2026geometry}
-Y.~Lin, T.~Lin, X.~Zhang, M.~Feng.
-Geometry-conforming finite element methods for interface problems on fitted
-and unfitted meshes.
-\url{https://arxiv.org/abs/2608.14484}, 2026.
-
-\bibitem[Rangarajan and Sukumar(2025)]{rangarajan2025cutvem}
-R.~Rangarajan, N.~Sukumar.
-CutVEM: conforming virtual element method on embedded domains with
-shape-agnostic element agglomeration.
-\url{https://arxiv.org/abs/2508.10570}, 2025.
-
-\bibitem[Voet et al.(2026)]{voet2026deflation}
-Y.~Voet, M.~M\"oller, P.~Antolin, C.~Vuik.
-Deflation-based preconditioning for immersed finite element methods and
-immersogeometric analysis.
-\url{https://arxiv.org/abs/2604.12848}, 2026.
-
-\bibitem[Zheng et al.(2026)]{zheng2026mixed}
-X.~Zheng, J.~Chen, F.~Wang.
-A mixed extended virtual element method for elliptic interface problems on
-polygonal meshes.
-\url{https://arxiv.org/abs/2606.08526}, 2026.
-
+\bibitem[Badia et al.(2019)]{badia2019aggregated} Badia et al., AgFEM, arXiv:1709.09122, 2019.
+\bibitem[Burman et al.(2023)]{burman2023unfitted} Burman et al., arXiv:2503.11397.
+\bibitem[Cui and Kanschat(2025)]{cui2025multigrid} Cui \& Kanschat, arXiv:2508.11608, 2025.
+\bibitem[Lin et al.(2026)]{lin2026geometry} Lin et al., arXiv:2608.14484, 2026.
+\bibitem[Rangarajan and Sukumar(2025)]{rangarajan2025cutvem} Rangarajan \& Sukumar, arXiv:2508.10570, 2025.
+\bibitem[Voet et al.(2026)]{voet2026deflation} Voet et al., arXiv:2604.12848, 2026.
+\bibitem[Zheng et al.(2026)]{zheng2026mixed} Zheng et al., arXiv:2606.08526, 2026.
 \end{thebibliography}
+
+\appendix
+\section{Trace constant for $P_1$/$P_2$}
+On the reference triangle, $C_{\rm tr}\le\sqrt{6}$ for $P_1$ and
+$\le\sqrt{24}$ for $P_2$ (inverse-trace $h_T^{-1/2}$); with $C_k=4(k+1)^2$,
+$\lambda_T\ge C_{\rm tr}^2\rho/h_T$ is satisfied for F1 and with margin for
+F3/F7, while small caps violate it at $\rho>\rho_{\rm cap}$ — exactly the
+observed $\gamma_h$ crossing.
 
 \end{document}
