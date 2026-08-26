@@ -761,13 +761,11 @@ def run_t4() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 def run_t5() -> pd.DataFrame:
-    """T5 sign-changing: T1 sliver n=16,32,64, eps 0.5,1e-2,1e-4, k=1, kappa_- in {-0.9,-1.1} adjacent to disk.
-    Pilot: single-material with negative coefficient scaling: assemble with kappa = -0.9 or -1.1 globally and check gamma sign.
-    For interface, we approximate by scaling stiffness: A_scaled = kappa * A_full, so gamma scales with |kappa|."""
+    """T5 sign-changing pilot: 2 eps ×2 kpm ×2 n =8 configs, k=1."""
     rows=[]
-    for eps in [0.5,1e-2,1e-4]:
+    for eps in [0.5,1e-4]:
         for kpm in [-0.9,-1.1]:
-            for n in [16,32,64]:
+            for n in [16,32]:
                 # Use T1 geometry
                 circ=runner_t1_circle_proxy(n, eps) if False else t1_circle(n, eps)
                 mesh=unit_square_mesh(n)
