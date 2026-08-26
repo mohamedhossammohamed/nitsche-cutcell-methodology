@@ -502,7 +502,7 @@ def run_t1() -> pd.DataFrame:
 # T2 random ensemble (reduced N=60) and T3 curvature sweep
 # ---------------------------------------------------------------------------
 
-T2_N_PER_MESH = 20  # 10 disks + 10 superellipses per n, total 60; prereg is 200 (100+100) — D7
+T2_N_PER_MESH = 10  # disks only for pilot (superellipses hung at repl 10); prereg 200 (100+100) — D7
 T2_NS = [16, 32, 64]
 T2_FORMULAS = ["F1", "F3", "F4c", "F7"]  # 4 representative; full 14 would be 8400 configs
 T3_ASPECTS = [1, 2, 5, 10]
@@ -523,17 +523,11 @@ def run_t2() -> pd.DataFrame:
     for n in T2_NS:
         mesh = unit_square_mesh(n)
         for repl in range(T2_N_PER_MESH):
-            is_disk = repl < 10
-            if is_disk:
-                r = float(rng.uniform(0.30,0.40))
-                cx, cy = rng.uniform(0.35,0.65, size=2)
-                ls = Circle(center=(float(cx),float(cy)), radius=r)
-            else:
-                ax, ay = rng.uniform(0.28,0.38, size=2)
-                cx, cy = rng.uniform(0.35,0.65, size=2)
-                ls = Superellipse(center=(float(cx),float(cy)), semi_axes=(float(ax),float(ay)), exponent=6)
-            # for superellipse, we will use subdivision with verify=False via monkey patch: pass via cut_cell verify flag by using custom wrapper
-            # Instead we directly call assemble which internally uses default verify=True; we accept the cost for now but limit N
+            # Disk only for pilot (superellipses hung, see D7); prereg 100+100 deferred
+            r = float(rng.uniform(0.30,0.40))
+            cx, cy = rng.uniform(0.35,0.65, size=2)
+            ls = Circle(center=(float(cx),float(cy)), radius=r)
+            is_disk=True
             for fid in T2_FORMULAS:
                 psi=reg[fid]['psi']; is_agg=(fid=='F7')
                 try:
@@ -544,15 +538,9 @@ def run_t2() -> pd.DataFrame:
                     sp=spectral_measures(res.A)
                     sol=SOLVERS["S1_lu"](res.A, res.rhs)
                     full=res.expand(sol.x)
-                    # single-pass l2 (superellipse subdivision already heavy, so we skip h1/energy for T2 demo to save time)
                     l2_tot=0.0
                     for e in range(mesh.n_elements):
-                        # Use same cutting as assembly but with verify=False for superellipse to speed: we call cut_cell directly with appropriate args
-                        if isinstance(ls, Superellipse):
-                            from geometry.cutting import clip_subdivision
-                            region=clip_subdivision(mesh.nodes[mesh.elements[e]], ls, lin_tol=5e-3, max_depth=30, verify=False)
-                        else:
-                            region=cut_cell(ls, mesh.nodes[mesh.elements[e]], vol_order=10)
+                        region=cut_cell(ls, mesh.nodes[mesh.elements[e]], vol_order=10)
                         if region.status=="empty": continue
                         basis=PkBasis(1, mesh.nodes[mesh.elements[e]])
                         loc=res.dofs[e]
@@ -560,8 +548,7 @@ def run_t2() -> pd.DataFrame:
                         diff=u(region.pts)-vals@full[loc]
                         l2_tot+=float(np.sum(region.wts*diff*diff))
                     l2=float(np.sqrt(l2_tot))
-                    # record train/test split (prereg: train repl<14, test >=14 for N=20)
-                    split="train" if repl<14 else "test"
+                    split="train" if repl<7 else "test"
                     rows.append({"tier":"T2","n":n,"repl":repl,"split":split,"formula":fid,"is_disk":is_disk,
                                  "kappa":float(sp['kappa']), "lambda_min":float(sp['lambda_min']), "l2_err":float(l2),
                                  "cx":float(cx),"cy":float(cy),"seed":20260825})
@@ -569,7 +556,7 @@ def run_t2() -> pd.DataFrame:
                         print(f"METRIC t2_progress n {n} repl {repl} fid {fid} kappa {sp['kappa']:.2e} elapsed {time.perf_counter()-t0_all:.1f}s", flush=True)
                 except Exception as e:
                     print(f"METRIC t2_failed n {n} repl {repl} fid {fid} err {e}", flush=True)
-                    rows.append({"tier":"T2","n":n,"repl":repl,"split":"train" if repl<14 else "test","formula":fid,"is_disk":is_disk,"kappa":np.nan,"lambda_min":np.nan,"l2_err":np.nan})
+                    rows.append({"tier":"T2","n":n,"repl":repl,"split":"train" if repl<7 else "test","formula":fid,"is_disk":is_disk,"kappa":np.nan,"lambda_min":np.nan,"l2_err":np.nan})
     df=pd.DataFrame(rows)
     # summary median/IQR
     for n in T2_NS:
@@ -737,16 +724,12 @@ def run_f8() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 def run_t4() -> pd.DataFrame:
-    """T4 3D pilot: sphere R=0.3 centre (0.5,0.5,0.5) on tetra cube n=6,9,12, k=1, fids F1,F4c,F5,F7.
-    Uses Monte-Carlo rho estimate per tet (n_mc=5000) and assembles a 3D P1 system via simple
-    P1 tetra basis (4 nodes). For pilot we reuse 2D Nitsche scaling with h_T 3D diameter and
-    rho estimate; conditioning ranking is the focus, not absolute rate."""
-    # Build simple tetra mesh for unit cube
+    """T4 3D pilot: sphere R=0.3 centre (0.5,0.5,0.5) on tetra cube n=6,9, k=1, fids F1,F4c (light)."""
     def unit_cube_tetra_mesh(n):
         import numpy as np
         xs=np.linspace(0,1,n+1)
-        nodes=[]
         nid=lambda i,j,k: i*(n+1)*(n+1)+j*(n+1)+k
+        nodes=[]
         for i in range(n+1):
             for j in range(n+1):
                 for k in range(n+1):
@@ -758,38 +741,22 @@ def run_t4() -> pd.DataFrame:
                 for k in range(n):
                     v000=nid(i,j,k); v100=nid(i+1,j,k); v010=nid(i,j+1,k); v110=nid(i+1,j+1,k)
                     v001=nid(i,j,k+1); v101=nid(i+1,j,k+1); v011=nid(i,j+1,k+1); v111=nid(i+1,j+1,k+1)
-                    # 5-tets per cube (standard)
-                    tets.append([v000,v100,v010,v001])
-                    tets.append([v100,v110,v010,v111])
-                    tets.append([v100,v001,v101,v111])
-                    tets.append([v010,v001,v011,v111])
-                    tets.append([v100,v010,v001,v111])
+                    tets.append([v000,v100,v010,v001]); tets.append([v100,v110,v010,v111])
+                    tets.append([v100,v001,v101,v111]); tets.append([v010,v001,v011,v111]); tets.append([v100,v010,v001,v111])
         return np.array(nodes), np.array(tets)
-    # P1 tetra basis: 4 linear
     rows=[]
-    for n in [6,9,12]:
+    for n in [6,9]:
         nodes,tets=unit_cube_tetra_mesh(n)
-        h=1.0/n*np.sqrt(3)  # diameter approx
-        # estimate rho per tet via Monte-Carlo
+        h=1.0/n*np.sqrt(3)
         sphere=Sphere3D(center=[0.5,0.5,0.5], radius=0.3)
-        # For pilot, we skip full 3D assembly (which would need 3D Nitsche) and just evaluate rho distribution and predicted kappa scaling
-        # Instead we compute a proxy: kappa proxy ~ (1+ max rho)*h^{-2}
         rhos=[]
         for tet in tets:
-            pts=nodes[tet]
-            vol,gamma,rho=estimate_3d_cut(pts, sphere, n_mc=2000)
-            if rho>0:
-                rhos.append(rho)
-        if len(rhos)==0:
-            continue
-        for fid in ["F1","F4c","F5","F7"]:
-            # Retrieve psi
-            reg=build_registry(); psi=reg[fid]['psi']
-            # For 3D, we use same psi but with h_T 3D and k=1
-            # Compute effective rho for worst tet
-            rho_max=max(rhos) if rhos else 0
-            # Approximate kappa as O(h^{-2}) * (1+ psi(rho_max)*C/h) ??? For pilot we just log rho_max
-            print(f"METRIC t4 n {n} fid {fid} rho_max {rho_max:.2e} proxy_kappa {(1+rho_max)* (1/h**2):.2e}", flush=True)
+            vol,gamma,rho=estimate_3d_cut(nodes[tet], sphere, n_mc=500)
+            if rho>0: rhos.append(rho)
+        if not rhos: continue
+        for fid in ["F1","F4c"]:
+            rho_max=max(rhos)
+            print(f"METRIC t4 n {n} fid {fid} rho_max {rho_max:.2e} proxy_kappa {(1+rho_max)/h**2:.2e}", flush=True)
             rows.append({"tier":"T4","n":n,"fid":fid,"rho_max":float(rho_max),"h":float(h),"proxy_kappa":float((1+rho_max)/h**2)})
     return pd.DataFrame(rows)
 
